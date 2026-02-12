@@ -127,11 +127,13 @@ if uploaded_file is not None:
         if top_suppliers:
             df_matrix = matrix_data[(matrix_data['FORNECEDOR'] != '') & (
                 matrix_data['FORNECEDOR'].isin(top_suppliers))]
-            if not df_matrix.empty:
-                pivot_matrix = df_matrix.pivot_table(
-                    index='PRODUTO_DISPLAY', columns='FORNECEDOR', values=metric_col, aggfunc='sum', fill_value=0)
-                pivot_matrix = pivot_matrix[top_suppliers]
-                if selected_product == "Todos":
+                        if not df_matrix.empty:
+                            pivot_matrix = df_matrix.pivot_table(index='PRODUTO_DISPLAY', columns='FORNECEDOR', values=metric_col, aggfunc='sum', fill_value=0)
+                            
+                            # Garantir que todas as colunas do Top 3 existem, preenchendo com 0 as que faltarem
+                            pivot_matrix = pivot_matrix.reindex(columns=top_suppliers, fill_value=0)
+            
+                            if selected_product == "Todos":
                     pivot_matrix['TOTAL'] = pivot_matrix.sum(axis=1)
                     pivot_matrix = pivot_matrix.sort_values(
                         'TOTAL', ascending=False).head(20)
