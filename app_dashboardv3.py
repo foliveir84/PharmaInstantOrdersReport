@@ -6,8 +6,7 @@ from db_cleaner import get_cleaned_data, calculate_session_roi
 from logic.ui_style import apply_custom_style, init_session_state
 
 # --- CONFIGURAÇÕES TÉCNICAS (ALTERAR MANUALMENTE SE NECESSÁRIO) ---
-# Segundos a descontar por verificação (Eficiência Humana)
-HUMAN_DISCOUNT_SECONDS = 20
+HUMAN_DISCOUNT_SECONDS = 20  # Segundos a descontar por verificação (Eficiência Humana)
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -21,7 +20,6 @@ st.set_page_config(
 init_session_state()
 apply_custom_style()
 
-
 @st.cache_data(show_spinner="Analisando ciclos de trabalho...")
 def load_and_clean_data(file_bytes):
     with tempfile.NamedTemporaryFile(delete=False, suffix='.db') as tmp:
@@ -32,7 +30,6 @@ def load_and_clean_data(file_bytes):
         os.unlink(tmp_path)
     return df
 
-
 # --- SIDEBAR ---
 if os.path.exists("Logo.png"):
     st.sidebar.image("Logo.png", width='stretch')
@@ -40,44 +37,38 @@ else:
     st.sidebar.markdown("### 💊 PharmaInstantOrders")
 
 st.sidebar.header("🛡️ Configurações ROI")
-uploaded_file = st.sidebar.file_uploader(
-    "Upload Base de Dados (.db)", type="db")
+uploaded_file = st.sidebar.file_uploader("Upload Base de Dados (.db)", type="db")
 
 st.sidebar.subheader("⚙️ Parâmetros Financeiros")
-custo_hora = st.sidebar.number_input(
-    "Custo Hora Colaborador (€)", value=10.0, step=0.5, format="%.2f")
+custo_hora = st.sidebar.number_input("Custo Hora Colaborador (€)", value=10.0, step=0.5, format="%.2f")
 
 st.sidebar.subheader("⏱️ Ajuste de Sessão")
-session_gap = st.sidebar.slider("Intervalo entre Sessões (min)",
-                                15, 120, 60, help="Tempo para separar execuções do script.")
+session_gap = st.sidebar.slider("Intervalo entre Sessões (min)", 15, 120, 60, help="Tempo para separar execuções do script.")
 
 # --- PROCESSAMENTO ---
 if uploaded_file is not None:
     file_bytes = uploaded_file.getvalue()
     df_raw = load_and_clean_data(file_bytes)
-
+    
     if df_raw is not None and not df_raw.empty:
         # Filtro de Data
         min_date, max_date = df_raw['Date'].min(), df_raw['Date'].max()
-        date_range = st.sidebar.date_input("Período:", value=(
-            min_date, max_date), min_value=min_date, max_value=max_date)
-
+        date_range = st.sidebar.date_input("Período:", value=(min_date, max_date), min_value=min_date, max_value=max_date)
+        
         if isinstance(date_range, tuple) and len(date_range) == 2:
-            df_filtered = df_raw[(df_raw['Date'] >= date_range[0]) & (
-                df_raw['Date'] <= date_range[1])].copy()
+            df_filtered = df_raw[(df_raw['Date'] >= date_range[0]) & (df_raw['Date'] <= date_range[1])].copy()
         else:
             df_filtered = df_raw.copy()
 
         # --- TÍTULO ---
-        st.title("PharmaInstantOrders Report - Análise de ROI Real")
-        st.markdown(
-            f"**Relatório de Disponibilidade** | {df_filtered['Date'].min().strftime('%d/%m/%Y')} a {df_filtered['Date'].max().strftime('%d/%m/%Y')}")
-
-        # Cálculos de ROI usando a variável técnica fixa
+        st.title("PharmaIntelligence - Análise de ROI Real")
+        st.markdown(f"**Relatório de Disponibilidade** | {df_filtered['Date'].min().strftime('%d/%m/%Y')} a {df_filtered['Date'].max().strftime('%d/%m/%Y')}")
+        
+        # Cálculos de ROI
         num_sess, total_verif, horas_brutas, valor_total = calculate_session_roi(
-            df_filtered,
-            custo_hora,
-            session_gap,
+            df_filtered, 
+            custo_hora, 
+            session_gap, 
             HUMAN_DISCOUNT_SECONDS
         )
         total_produtos = df_filtered['CNP'].nunique()
@@ -98,15 +89,13 @@ if uploaded_file is not None:
         # --- ANÁLISE POR PRODUTO ---
         st.subheader("🔍 Auditoria por Produto")
         all_products = sorted(df_filtered['PRODUTO_DISPLAY'].unique())
-        selected_product = st.selectbox(
-            "Selecione o Produto para detalhe:", options=["Todos"] + all_products)
-
+        selected_product = st.selectbox("Selecione o Produto para detalhe:", options=["Todos"] + all_products)
+        
         if selected_product != "Todos":
-            df_prod = df_filtered[df_filtered['PRODUTO_DISPLAY']
-                                  == selected_product]
+            df_prod = df_filtered[df_filtered['PRODUTO_DISPLAY'] == selected_product]
             p_verif = df_prod.groupby(['TIME_STAMP', 'CNP']).size().shape[0]
             p_total_enq = df_prod['QT_ENCOMENDADA'].sum()
-
+            
             p1, p2 = st.columns(2)
             p1.metric("Verificações de Stock", f"{p_verif}")
             p2.metric("Unidades Encomendadas", f"{int(p_total_enq)} un")
@@ -116,31 +105,29 @@ if uploaded_file is not None:
 
         # --- MATRIZ DE FORNECEDORES ---
         st.subheader("📊 Matriz de Performance de Fornecedores")
-        view_option = st.radio("Métrica da Matriz:", [
-                               "Unidades Encomendadas", "Unidades Disponíveis"], horizontal=True)
+        view_option = st.radio("Métrica da Matriz:", ["Unidades Encomendadas", "Unidades Disponíveis"], horizontal=True)
         metric_col = 'QT_ENCOMENDADA' if view_option == "Unidades Encomendadas" else 'QT_DISPONIVEL'
-
+        
         df_suppliers_only = df_filtered[df_filtered['FORNECEDOR'] != '']
-        top_suppliers = df_suppliers_only.groupby('FORNECEDOR')[metric_col].sum(
-        ).sort_values(ascending=False).head(3).index.tolist()
-
+        top_suppliers = df_suppliers_only.groupby('FORNECEDOR')[metric_col].sum().sort_values(ascending=False).head(3).index.tolist()
+        
         if top_suppliers:
-            df_matrix = matrix_data[(matrix_data['FORNECEDOR'] != '') & (
-                matrix_data['FORNECEDOR'].isin(top_suppliers))]
-                        if not df_matrix.empty:
-                            pivot_matrix = df_matrix.pivot_table(index='PRODUTO_DISPLAY', columns='FORNECEDOR', values=metric_col, aggfunc='sum', fill_value=0)
-                            
-                            # Garantir que todas as colunas do Top 3 existem, preenchendo com 0 as que faltarem
-                            pivot_matrix = pivot_matrix.reindex(columns=top_suppliers, fill_value=0)
+            # Filtramos a matrix_data (que pode ser 1 produto ou todos) para os TOP 3
+            df_matrix = matrix_data[(matrix_data['FORNECEDOR'] != '') & (matrix_data['FORNECEDOR'].isin(top_suppliers))]
             
-                            if selected_product == "Todos":
+            if not df_matrix.empty:
+                pivot_matrix = df_matrix.pivot_table(index='PRODUTO_DISPLAY', columns='FORNECEDOR', values=metric_col, aggfunc='sum', fill_value=0)
+                
+                # Garantir que todas as colunas do Top 3 existem (corrige o KeyError)
+                pivot_matrix = pivot_matrix.reindex(columns=top_suppliers, fill_value=0)
+
+                if selected_product == "Todos":
                     pivot_matrix['TOTAL'] = pivot_matrix.sum(axis=1)
-                    pivot_matrix = pivot_matrix.sort_values(
-                        'TOTAL', ascending=False).head(20)
+                    pivot_matrix = pivot_matrix.sort_values('TOTAL', ascending=False).head(20)
+                
                 st.dataframe(pivot_matrix, use_container_width=True)
             else:
-                st.warning(
-                    "Sem transações para os top fornecedores neste filtro.")
+                st.warning("Não existem transações registadas para os top fornecedores neste filtro.")
         else:
             st.warning("Sem dados de fornecedores ativos.")
 
