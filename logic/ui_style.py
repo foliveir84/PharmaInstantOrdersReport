@@ -1,4 +1,6 @@
 import streamlit as st
+import base64
+import os
 
 def init_session_state():
     """Inicializa variáveis globais que devem persistir entre páginas."""
@@ -84,3 +86,41 @@ def apply_custom_style():
         }
     </style>
     """, unsafe_allow_html=True)
+
+def apply_corner_logo(path="assets/logo_corner.png", height=36):
+    """Logotipo persistente no canto superior direito (badge branco legivel no tema escuro)."""
+    if not os.path.exists(path):
+        return
+    with open(path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    st.markdown(
+        f"""
+        <style>
+            .brand-corner {{
+                position: fixed;
+                top: 12px;
+                right: 16px;
+                z-index: 999999;
+                background: rgba(255, 255, 255, 0.96);
+                padding: 8px 14px;
+                border-radius: 12px;
+                box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+                display: flex;
+                align-items: center;
+            }}
+            .brand-corner img {{
+                height: {height}px;
+                width: auto;
+                display: block;
+            }}
+            @media (max-width: 768px) {{
+                .brand-corner img {{ height: 28px; }}
+                .brand-corner {{ padding: 6px 10px; }}
+            }}
+        </style>
+        <div class="brand-corner">
+            <img src="data:image/png;base64,{b64}" alt="Rede Premium Farma">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )

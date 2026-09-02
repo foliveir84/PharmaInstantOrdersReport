@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import tempfile
 from db_cleaner import get_cleaned_data, calculate_session_roi
-from logic.ui_style import apply_custom_style, init_session_state
+from logic.ui_style import apply_custom_style, apply_corner_logo, init_session_state
 
 # --- CONFIGURAÇÕES TÉCNICAS (ALTERAR MANUALMENTE SE NECESSÁRIO) ---
 HUMAN_DISCOUNT_SECONDS = 20  # Segundos a descontar por verificação (Eficiência Humana)
@@ -19,6 +19,7 @@ st.set_page_config(
 # --- INICIALIZAÇÃO ---
 init_session_state()
 apply_custom_style()
+apply_corner_logo()
 
 @st.cache_data(show_spinner="Analisando ciclos de trabalho...")
 def load_and_clean_data(file_bytes):
